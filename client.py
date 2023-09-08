@@ -69,6 +69,7 @@ parser = argparse.ArgumentParser(description="A Python based open source viewer 
 
 # Add command-line arguments
 parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')
+parser.add_argument('-r', '--rotation', action='store_true', help='Rotate image')
 
 args = parser.parse_args()
 
@@ -139,7 +140,10 @@ while True:
             img += current_packet[i]
         nparr = np.frombuffer(img, dtype=np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        img2_cv = rotate_image(img_cv, current_angle * -1 - 90)
+        if args.rotation:
+            img2_cv = rotate_image(img_cv, current_angle * -1 - 90)
+        else:
+            img2_cv = img_cv
         cv2.imshow('image', img2_cv)
         cv2.waitKey(2)
         last_full_image = img_number
