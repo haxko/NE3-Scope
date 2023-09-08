@@ -2,6 +2,7 @@
 import socket
 import sys
 import time
+import argparse
 import cv2
 import numpy as np
 from math import atan2, degrees
@@ -64,6 +65,13 @@ def rotate_image(image, angle):
 ip = "192.168.169.1"
 port = 8800
 
+parser = argparse.ArgumentParser(description="A Python based open source viewer for the NE3 Earpick wireless endoscope")
+
+# Add command-line arguments
+parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')
+
+args = parser.parse_args()
+
 current_packet = {}
 current_img_number = 1
 current_angle = 0
@@ -81,8 +89,11 @@ while True:
         data, addr = s.recvfrom(1500) #Try to receive data
     except TimeoutError:
         if time.time() > last_msg + 120: # Connection probably lost
+            print("Connection lost")
             sys.exit(1)
         if time.time() > last_msg + 0.5: # Reconnect
+            if args.verbose:
+                print("Request timed out; Reconnecting")
             send_init(s)
             current_img_number = 1
             last_full_image = 0
@@ -90,9 +101,13 @@ while True:
             continue
         if last_full_image > 0 and last_full_image == current_img_number:
             # Timeout and last image complete - send ACK and request again
+            if args.verbose:
+                print("Request timed out; ACK+REQ resend")
             send_msgs(s, [msg_ack_img(current_img_number), msg_req_img(current_img_number + 1)])
         else:
             # Timeout and image incomplete - send request to continue transmission again
+            if args.verbose:
+                print("Request timed out; REQ resend")
             send_msgs(s, [])
         continue
     last_msg = time.time()
@@ -116,7 +131,8 @@ while True:
         current_angle = degrees(current_angle)
     if len(current_packet) == packet_count:
         #Image RX complete
-        print("img_number:", img_number, file=sys.stderr)
+        if args.verbose:
+            print("img_number:", img_number, file=sys.stderr)
         img_type = header[48]
         img = getImgHeader(img_type)
         for i in range(packet_count):
