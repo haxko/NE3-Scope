@@ -41,6 +41,12 @@ def send_msgs(socket, msgs):
     except:
         pass
 
+def send_null_pkt(socket):
+    try:
+        socket.sendto(bytes(), (ip, 1234))
+    except:
+        pass
+
 def msg_ack_img(img_number):
     return int_to_bytes(img_number) + bytes.fromhex("0100000014000000ffffffff") #@TODO: Last f's contain data in original app
 
@@ -85,10 +91,12 @@ current_angle = 0
 last_full_image = 0
 last_msg = time.time()
 last_request_more = time.time()
+last_null_packet = time.time()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind(("0.0.0.0",36000))
 s.settimeout(0.025)
+send_null_pkt(s)
 send_init(s)
 img_number = 0
 while True:
@@ -165,3 +173,6 @@ while True:
         # Image not yet complete – request to continue transmission
         send_msgs(s, [])
         last_request_more = time.time()
+    if time.time() > last_null_packet + 5:
+        send_null_pkt(s)
+        last_null_packet = time.time()
