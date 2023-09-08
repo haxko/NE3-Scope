@@ -12,10 +12,59 @@ jpeg_header_640x360_Q50  = bytes.fromhex("ffd8ffdb004300100b0c0e0c0a100e0d0e1211
 jpeg_header_640x360_Q75  = bytes.fromhex("ffd8ffdb004300080606070605080707070909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c2837292c30313434341f27393d38323c2e333432ffdb0043010909090c0b0c180d0d1832211c213232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232ffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
 jpeg_header_640x360_Q100 = bytes.fromhex("ffd8ffdb00430001010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffdb00430101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
 
+data_init = bytes([0xef, 0x00, 0x04, 0x00]
+
 def len_to_bytes(l):
     return bytes([l & 0xff, (l >> 8) & 0xff])
 def int_to_bytes(i):
     return bytes([i & 0xff, (i >> 8) & 0xff, (i >> 16) & 0xff, (i >> 24) & 0xff, (i >> 32) & 0xff, (i >> 40) & 0xff, (i >> 48) & 0xff, (i >> 56) & 0xff])
+
+def requestTransmissionHeader(type = 0):
+    to_send = bytes.fromhex("02020001")
+    to_send += int_to_bytes(type)
+    to_send += bytes.fromhex("0000000000000000")
+    to_send += bytes.fromhex("0a4b142d00000000")
+    return to_send
+    
+def requestTransmissionContinue():
+    to_send = requestTransmissionHeader(0)
+    to_send += bytes.fromhex("0000000000000000")
+    to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
+    return to_send
+    
+def requestTransmissionAckContinue(current_img_number):
+    to_send = requestTransmissionHeader(2)
+    # ack current image
+    to_send += int_to_bytes(current_img_number)
+    to_send += bytes.fromhex("0100000014000000ffffffff") #@TODO: Last f's contain data in original app
+    # request next image
+    to_send += int_to_bytes(current_img_number + 1)
+    to_send += bytes.fromhex("0300000010000000")
+    to_send += bytes.fromhex("0000000000000000")
+    to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
+    return to_send
+    
+def getImgHeader(img_type):
+    img = bytes()
+    if img_type == 5:
+        #f.write(jpeg_header_640x360_Q5)
+        img += jpeg_header_640x360_Q5
+    elif img_type == 10:
+        #f.write(jpeg_header_640x360_Q10)
+        img += jpeg_header_640x360_Q10
+    elif img_type == 25:
+        #f.write(jpeg_header_640x360_Q25)
+        img += jpeg_header_640x360_Q25
+    elif img_type == 50:
+        #f.write(jpeg_header_640x360_Q50)
+        img += jpeg_header_640x360_Q50
+    elif img_type == 75:
+        #f.write(jpeg_header_640x360_Q75)
+        img += jpeg_header_640x360_Q75
+    else:
+        #f.write(jpeg_header_640x360_Q100)
+        img += jpeg_header_640x360_Q100
+    return img
 
 ip = "192.168.169.1"
 port = 8800
@@ -28,42 +77,27 @@ last_msg = time.time()
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind(("0.0.0.0",36000))
 s.settimeout(0.1)
-s.sendto(bytes([0xef, 0x00, 0x04, 0x00]),(ip,port))
+s.sendto(data_init,(ip,port))
 img_number = 0
 while True:
     try:
-        data, addr = s.recvfrom(1500)
+        data, addr = s.recvfrom(1500) #Try to receive data
     except TimeoutError:
-        if time.time() > last_msg + 120:
+        if time.time() > last_msg + 120: # Connection probably lost
             sys.exit(1)
-        if time.time() > last_msg + 0.5:
-            s.sendto(bytes([0xef, 0x00, 0x04, 0x00]),(ip,port))
+        if time.time() > last_msg + 0.5: # Reconnect
+            s.sendto(data_init,(ip,port))
             current_img_number = 1
             last_full_image = 0
             current_packet = {}
             continue
         if last_full_image > 0 and last_full_image == current_img_number:
-            to_send = bytes.fromhex("02020001")
-            to_send += int_to_bytes(2)
-            to_send += bytes.fromhex("0000000000000000")
-            to_send += bytes.fromhex("0a4b142d00000000")
-            # ack current image
-            to_send += int_to_bytes(last_full_image)
-            to_send += bytes.fromhex("0100000014000000ffffffff")
-            # request next image
-            to_send += int_to_bytes(current_img_number + 1)
-            to_send += bytes.fromhex("0300000010000000")
-            to_send += bytes.fromhex("0000000000000000")
-            to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
+            # Timeout and last image complete - send ACK and request again
+            to_send = requestTransmissionAckContinue(current_img_number)
             s.sendto(to_send,(ip,port))
         else:
-            to_send = bytes.fromhex("02020001")
-            to_send += int_to_bytes(0)
-            to_send += bytes.fromhex("0000000000000000")
-            to_send += bytes.fromhex("0a4b142d00000000")
-            to_send += bytes.fromhex("0000000000000000")
-            length = len(to_send)
-            to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
+            # Timeout and image incomplete - send request to continue transmission again
+            to_send = requestTransmissionContinue()
             s.sendto(to_send,(ip,port))
         continue
     last_msg = time.time()
@@ -72,68 +106,31 @@ while True:
     packet_number = int(header[32]) + int(header[33] << 8) + int(header[34] << 16) + int(header[35] << 24)
     packet_count = int(header[36]) + int(header[37] << 8) + int(header[38] << 16) + int(header[39] << 24)
     img_number = int(header[8]) + int(header[9] << 8) + int(header[10] << 16) + int(header[11] << 24) + int(header[12] << 32) + int(header[13] << 40) + int(header[14] << 48) + int(header[15] << 56)
-    img_type = header[48]
     d = data[56:]
-    #print("length:", length, file=sys.stderr)
     print("img_number:", img_number, file=sys.stderr)
-    #print("packet_number:", packet_number, "packed_count:", packet_count, file=sys.stderr)
-    #print(header.hex(), file=sys.stderr)
     if img_number > current_img_number:
+        #Started receiving new image. Clear buffer.
         current_img_number = img_number
         current_packet = {}
     if img_number < current_img_number:
+        #Received older image than displayed - discard
         continue
     current_packet[packet_number] = d[:1024]
     if len(current_packet) == packet_count:
-        #f = open(f"{img_number}.jpg", "wb")
-        #f = sys.stdout
-        img = bytes()
-        if img_type == 5:
-            #f.write(jpeg_header_640x360_Q5)
-            img += jpeg_header_640x360_Q5
-        elif img_type == 10:
-            #f.write(jpeg_header_640x360_Q10)
-            img += jpeg_header_640x360_Q10
-        elif img_type == 25:
-            #f.write(jpeg_header_640x360_Q25)
-            img += jpeg_header_640x360_Q25
-        elif img_type == 50:
-            #f.write(jpeg_header_640x360_Q50)
-            img += jpeg_header_640x360_Q50
-        elif img_type == 75:
-            #f.write(jpeg_header_640x360_Q75)
-            img += jpeg_header_640x360_Q75
-        else:
-            #f.write(jpeg_header_640x360_Q100)
-            img += jpeg_header_640x360_Q100
+        #Image RX complete
+        img_type = header[48]
+        img = getImgHeader(img_type)
         for i in range(packet_count):
-            #f.write(current_packet[i])
             img += current_packet[i]
-        #f.close()
         nparr = np.frombuffer(img, dtype=np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         cv2.imshow('image', img_cv)
         cv2.waitKey(2)
         last_full_image = img_number
-        to_send = bytes.fromhex("02020001")
-        to_send += int_to_bytes(2)
-        to_send += bytes.fromhex("0000000000000000")
-        to_send += bytes.fromhex("0a4b142d00000000")
-        # ack current image
-        to_send += int_to_bytes(current_img_number)
-        to_send += bytes.fromhex("0100000014000000ffffffff")
-        # request next image
-        to_send += int_to_bytes(current_img_number + 1)
-        to_send += bytes.fromhex("0300000010000000")
-        to_send += bytes.fromhex("0000000000000000")
-        to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
+        # ACK and request next frame
+        to_send = requestTransmissionAckContinue(current_img_number)
         s.sendto(to_send,(ip,port))
     if len(current_packet) < packet_count:
-        to_send = bytes.fromhex("02020001")
-        to_send += int_to_bytes(0)
-        to_send += bytes.fromhex("0000000000000000")
-        to_send += bytes.fromhex("0a4b142d00000000")
-        to_send += bytes.fromhex("0000000000000000")
-        length = len(to_send)
-        to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
+        # Image not yet complete – request to continue transmission
+        to_send = requestTransmissionContinue()
         s.sendto(to_send,(ip,port))
