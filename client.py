@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import socket
 import sys
+import os
+import fcntl
+import stat
 import time
 import argparse
 import cv2
@@ -53,6 +56,45 @@ def getImgHeader(img_type):
         return jpeg_header_640x360_Q75
     else:
         return jpeg_header_640x360_Q100
+        
+
+def ConvertToYUYV(sizeimage, bytesperline, im):
+    #via https://gist.github.com/TimSC/6532334
+    padding = 4096
+    buff = np.zeros((sizeimage+padding, ), dtype=np.uint8)
+    imgrey = im[:,:,0] * 0.299 + im[:,:,1] * 0.587 + im[:,:,2] * 0.114
+    Pb = im[:,:,0] * -0.168736 + im[:,:,1] * -0.331264 + im[:,:,2] * 0.5
+    Pr = im[:,:,0] * 0.5 + im[:,:,1] * -0.418688 + im[:,:,2] * -0.081312
+
+    for y in range(imgrey.shape[0]):
+        #Set lumenance
+        cursor = y * bytesperline + padding
+        for x in range(imgrey.shape[1]):
+            try:
+                buff[cursor] = imgrey[y, x]
+            except IndexError:
+                pass
+            cursor += 2
+    
+        #Set color information for Cb
+        cursor = y * bytesperline + padding
+        for x in range(0, imgrey.shape[1], 2):
+            try:
+                buff[cursor+1] = 0.5 * (Pb[y, x] + Pb[y, x+1]) + 128
+            except IndexError:
+                pass
+            cursor += 4
+
+        #Set color information for Cr
+        cursor = y * bytesperline + padding
+        for x in range(0, imgrey.shape[1], 2):
+            try:
+                buff[cursor+3] = 0.5 * (Pr[y, x] + Pr[y, x+1]) + 128
+            except IndexError:
+                pass
+            cursor += 4
+
+    return buff.tostring()
 
 ip = "192.168.169.1"
 port = 8800
@@ -61,6 +103,7 @@ parser = argparse.ArgumentParser(description="A Python based open source viewer 
 
 # Add command-line arguments
 parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')
+parser.add_argument('-w', '--webcam', type=str, metavar='DEVICE', required=False, help='Send to the specified v4l2loopback device instead of displaying it (example: /dev/video1)')
 
 args = parser.parse_args()
 
@@ -75,6 +118,40 @@ s.bind(("0.0.0.0",36000))
 s.settimeout(0.1)
 send_init(s)
 img_number = 0
+
+if args.webcam:
+    if not os.path.exists(args.webcam):
+        print(f"Device {args.webcam} does not exist")
+        sys.exit(1)
+    if not stat.S_ISCHR(os.stat(args.webcam).st_mode):
+        print(f"Device {args.webcam} is not a valid device")
+        sys.exit(1)
+        
+    from v4l2 import *
+    width = 640
+    height = 360
+    fmt = V4L2_PIX_FMT_YUYV
+    cam = open(args.webcam, 'w')
+    if args.verbose:
+        print(f"Device {args.webcam} opened")
+        capability = v4l2_capability()
+        print("get capabilities result", (fcntl.ioctl(cam, VIDIOC_QUERYCAP, capability)))
+        print("capabilities", hex(capability.capabilities))
+        print("v4l2 driver: " + str(capability.driver))
+        
+    format = v4l2_format()
+    format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT
+    format.fmt.pix.pixelformat = fmt
+    format.fmt.pix.width = width
+    format.fmt.pix.height = height
+    format.fmt.pix.field = V4L2_FIELD_NONE
+    format.fmt.pix.bytesperline = width * 2
+    format.fmt.pix.sizeimage = width * height * 2
+    format.fmt.pix.colorspace = V4L2_COLORSPACE_JPEG
+    
+    if args.verbose:
+        print("set format result", (fcntl.ioctl(cam, VIDIOC_S_FMT, format)))
+
 while True:
     try:
         data, addr = s.recvfrom(1500) #Try to receive data
@@ -126,8 +203,14 @@ while True:
             img += current_packet[i]
         nparr = np.frombuffer(img, dtype=np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        cv2.imshow('image', img_cv)
-        cv2.waitKey(2)
+        if args.webcam:
+            buff = ConvertToYUYV(format.fmt.pix.sizeimage, format.fmt.pix.bytesperline, frame)
+            cam.write(buff)
+        else:
+            cv2.imshow('image', img_cv)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
+            sys.exit(0)
         last_full_image = img_number
         # ACK and request next frame
         send_msgs(s, [msg_ack_img(current_img_number), msg_req_img(current_img_number + 1)])
