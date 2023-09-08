@@ -2,6 +2,7 @@
 import socket
 import sys
 import time
+import argparse
 import cv2
 import numpy as np
 
@@ -55,6 +56,9 @@ def getImgHeader(img_type):
 
 ip = "192.168.169.1"
 port = 8800
+
+parser = argparse.ArgumentParser(description="A Python based open source viewer for the NE3 Earpick wireless endoscope")
+args = parser.parse_args()
 
 current_packet = {}
 current_img_number = 1
