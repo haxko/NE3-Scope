@@ -82,7 +82,7 @@ last_request_more = time.time()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind(("0.0.0.0",36000))
-s.settimeout(0.1)
+s.settimeout(0.025)
 send_init(s)
 img_number = 0
 while True:
