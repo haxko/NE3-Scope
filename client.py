@@ -25,7 +25,10 @@ def int_to_bytes(i):
 
 def send_init(socket):
     data_init = bytes([0xef, 0x00, 0x04, 0x00])
-    socket.sendto(data_init,(ip,port))
+    try:
+        socket.sendto(data_init,(ip,port))
+    except:
+        pass
 
 def send_msgs(socket, msgs):
     to_send = bytes.fromhex("02020001")
@@ -36,7 +39,10 @@ def send_msgs(socket, msgs):
         to_send += msg
     to_send += bytes.fromhex("0000000000000000")
     to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
-    socket.sendto(to_send,(ip,port))
+    try:
+        socket.sendto(to_send,(ip,port))
+    except:
+        pass
 
 def msg_ack_img(img_number):
     return int_to_bytes(img_number) + bytes.fromhex("0100000014000000ffffffff") #@TODO: Last f's contain data in original app
@@ -124,7 +130,7 @@ last_request_more = time.time()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind(("0.0.0.0",36000))
-s.settimeout(0.1)
+s.settimeout(0.025)
 send_init(s)
 img_number = 0
 
@@ -204,8 +210,13 @@ while True:
     current_packet[packet_number] = d[:1024]
     if packet_number == 0:
         a = d[1024:]
-        current_angle = atan2(int(a[:5].decode()), int(a[6:].decode()))
-        current_angle = degrees(current_angle)
+        x = int(a[:5].decode())
+        y = int(a[6:].decode())
+        if x == 0 and y == 1024:
+            current_angle = 90
+        else:
+            current_angle = atan2(x, y)
+            current_angle = degrees(current_angle)
     if len(current_packet) == packet_count:
         #Image RX complete
         if args.verbose:
