@@ -93,7 +93,6 @@ while True:
     packet_count = int(header[36]) + int(header[37] << 8) + int(header[38] << 16) + int(header[39] << 24)
     img_number = int(header[8]) + int(header[9] << 8) + int(header[10] << 16) + int(header[11] << 24) + int(header[12] << 32) + int(header[13] << 40) + int(header[14] << 48) + int(header[15] << 56)
     d = data[56:]
-    print("img_number:", img_number, file=sys.stderr)
     if img_number > current_img_number:
         #Started receiving new image. Clear buffer.
         current_img_number = img_number
@@ -104,6 +103,7 @@ while True:
     current_packet[packet_number] = d[:1024]
     if len(current_packet) == packet_count:
         #Image RX complete
+        print("img_number:", img_number, file=sys.stderr)
         img_type = header[48]
         img = getImgHeader(img_type)
         for i in range(packet_count):
