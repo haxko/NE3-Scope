@@ -134,8 +134,13 @@ while True:
     current_packet[packet_number] = d[:1024]
     if packet_number == 0:
         a = d[1024:]
-        current_angle = atan2(int(a[:5].decode()), int(a[6:].decode()))
-        current_angle = degrees(current_angle)
+        x = int(a[:5].decode())
+        y = int(a[6:].decode())
+        if x == 0 and y == 1024:
+            current_angle = 90
+        else:
+            current_angle = atan2(x, y)
+            current_angle = degrees(current_angle)
     if len(current_packet) == packet_count:
         #Image RX complete
         if args.verbose:
