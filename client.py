@@ -8,6 +8,7 @@ import time
 import argparse
 import cv2
 import numpy as np
+from math import atan2, degrees
 
 jpeg_header_640x360_Q5   = bytes.fromhex("ffd8ffdb004300a06e788c7864a08c828cb4aaa0bef0fffff0dcdcf0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdb004301aab4b4f0d2f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
 jpeg_header_640x360_Q10  = bytes.fromhex("ffd8ffdb00430050373c463c32504641465a55505f78c882786e6e78f5afb991c8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdb004301555a5a786978eb8282ebffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
@@ -96,6 +97,12 @@ def ConvertToYUYV(sizeimage, bytesperline, im):
 
     return buff.tostring()
 
+def rotate_image(image, angle):
+    image_center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+    return result
+
 ip = "192.168.169.1"
 port = 8800
 
@@ -103,12 +110,14 @@ parser = argparse.ArgumentParser(description="A Python based open source viewer 
 
 # Add command-line arguments
 parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')
+parser.add_argument('-r', '--rotation', action='store_true', help='Rotate image')
 parser.add_argument('-w', '--webcam', type=str, metavar='DEVICE', required=False, help='Send to the specified v4l2loopback device instead of displaying it (example: /dev/video1)')
 
 args = parser.parse_args()
 
 current_packet = {}
 current_img_number = 1
+current_angle = 0
 last_full_image = 0
 last_msg = time.time()
 last_request_more = time.time()
@@ -193,6 +202,10 @@ while True:
         #Received older image than displayed - discard
         continue
     current_packet[packet_number] = d[:1024]
+    if packet_number == 0:
+        a = d[1024:]
+        current_angle = atan2(int(a[:5].decode()), int(a[6:].decode()))
+        current_angle = degrees(current_angle)
     if len(current_packet) == packet_count:
         #Image RX complete
         if args.verbose:
@@ -203,6 +216,10 @@ while True:
             img += current_packet[i]
         nparr = np.frombuffer(img, dtype=np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if args.rotation:
+            img2_cv = rotate_image(img_cv, current_angle * -1 - 90)
+        else:
+            img2_cv = img_cv
         if args.webcam:
             buff = ConvertToYUYV(format.fmt.pix.sizeimage, format.fmt.pix.bytesperline, frame)
             cam.write(buff)
@@ -214,7 +231,7 @@ while True:
         last_full_image = img_number
         # ACK and request next frame
         send_msgs(s, [msg_ack_img(current_img_number), msg_req_img(current_img_number + 1)])
-    if len(current_packet) < packet_count and time.time() > last_request_more + 0.05:
+    if len(current_packet) < packet_count and time.time() > last_request_more + 0.025:
         # Image not yet complete – request to continue transmission
         send_msgs(s, [])
         last_request_more = time.time()
