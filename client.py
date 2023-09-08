@@ -149,6 +149,7 @@ while True:
         img = getImgHeader(img_type)
         for i in range(packet_count):
             img += current_packet[i]
+        img += bytes([0xff, 0xd9])
         nparr = np.frombuffer(img, dtype=np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if args.rotation:
