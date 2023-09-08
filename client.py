@@ -60,6 +60,7 @@ current_packet = {}
 current_img_number = 1
 last_full_image = 0
 last_msg = time.time()
+last_request_more = time.time()
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind(("0.0.0.0",36000))
@@ -114,6 +115,7 @@ while True:
         last_full_image = img_number
         # ACK and request next frame
         send_msgs(s, [msg_ack_img(current_img_number), msg_req_img(current_img_number + 1)])
-    if len(current_packet) < packet_count:
+    if len(current_packet) < packet_count and time.time() > last_request_more + 0.05:
         # Image not yet complete – request to continue transmission
         send_msgs(s, [])
+        last_request_more = time.time()
