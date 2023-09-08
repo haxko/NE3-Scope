@@ -22,7 +22,10 @@ def int_to_bytes(i):
 
 def send_init(socket):
     data_init = bytes([0xef, 0x00, 0x04, 0x00])
-    socket.sendto(data_init,(ip,port))
+    try:
+        socket.sendto(data_init,(ip,port))
+    except:
+        pass
 
 def send_msgs(socket, msgs):
     to_send = bytes.fromhex("02020001")
@@ -33,7 +36,10 @@ def send_msgs(socket, msgs):
         to_send += msg
     to_send += bytes.fromhex("0000000000000000")
     to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
-    socket.sendto(to_send,(ip,port))
+    try:
+        socket.sendto(to_send,(ip,port))
+    except:
+        pass
 
 def msg_ack_img(img_number):
     return int_to_bytes(img_number) + bytes.fromhex("0100000014000000ffffffff") #@TODO: Last f's contain data in original app
