@@ -8,7 +8,7 @@ To avoid problems due to broken or outdated system packages you can consider usi
 
 ```
 cd /path/to/your/folder
-git clone git@github.com:haxko/NE3-Scope.git
+git clone https://github.com/haxko/NE3-Scope.git
 cd NE3-Scope
 python -m venv .
 . bin/activate
