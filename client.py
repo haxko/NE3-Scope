@@ -149,6 +149,9 @@ while True:
         else:
             current_angle = atan2(x, y)
             current_angle = degrees(current_angle)
+            # first tries to calculate the angle between the z vector and gravity 
+            # to see if the accelerometer can be used as a crude spirit level
+            # sadly the device only publishes x and y
             a_total = sqrt(x*x+y*y)
             z = sqrt(abs(a_total*a_total - 239*239))
             z_angle = acos(z/a_total)
