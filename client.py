@@ -127,6 +127,13 @@ while True:
         continue
     last_msg = time.time()
     header = data[:56]
+    if header[0] != 0x93:
+        continue
+    if header[1] == 0x04:
+        # TODO ctlmsg
+        continue
+    if header[1] != 0x01:
+        continue
     length = header[2] | (header[3] << 8)
     packet_number = int(header[32]) + int(header[33] << 8) + int(header[34] << 16) + int(header[35] << 24)
     packet_count = int(header[36]) + int(header[37] << 8) + int(header[38] << 16) + int(header[39] << 24)
