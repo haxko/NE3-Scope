@@ -9,9 +9,9 @@ import numpy as np
 from ne3 import Header, Frame
 
 def short_to_bytes(l):
-    return struct.pack("<h", l)
+    return struct.pack("<H", l)
 def int_to_bytes(i):
-    return struct.pack("<i", i)
+    return struct.pack("<Q", i)
 
 def send_init(socket):
     data_init = bytes([0xef, 0x00, 0x04, 0x00])
