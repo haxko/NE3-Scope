@@ -1,24 +1,17 @@
 #!/usr/bin/env python3
 import socket
+import struct
 import sys
 import time
 import argparse
 import cv2
 import numpy as np
-from math import atan2, degrees
+from ne3 import Header, Frame
 
-jpeg_header_640x360_Q5   = bytes.fromhex("ffd8ffdb004300a06e788c7864a08c828cb4aaa0bef0fffff0dcdcf0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdb004301aab4b4f0d2f0ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
-jpeg_header_640x360_Q10  = bytes.fromhex("ffd8ffdb00430050373c463c32504641465a55505f78c882786e6e78f5afb991c8ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdb004301555a5a786978eb8282ebffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
-jpeg_header_640x360_Q25  = bytes.fromhex("ffd8ffdb0043002016181c1814201c1a1c24222026305034302c2c3062464a3a5074667a787266706e8090b89c8088ae8a6e70a0daa2aebec4ced0ce7c9ae2f2e0c8f0b8cacec6ffdb004301222424302a305e34345ec6847084c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6ffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
-jpeg_header_640x360_Q50  = bytes.fromhex("ffd8ffdb004300100b0c0e0c0a100e0d0e1211101318281a181616183123251d283a333d3c3933383740485c4e404457453738506d51575f626768673e4d71797064785c656763ffdb0043011112121815182f1a1a2f634238426363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363ffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
-jpeg_header_640x360_Q75  = bytes.fromhex("ffd8ffdb004300080606070605080707070909080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c231c1c2837292c30313434341f27393d38323c2e333432ffdb0043010909090c0b0c180d0d1832211c213232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232ffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
-jpeg_header_640x360_Q100 = bytes.fromhex("ffd8ffdb00430001010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffdb00430101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101ffc00011080168028003011100021101031101ffc4001f0000010501010101010100000000000000000102030405060708090a0bffc400b5100002010303020403050504040000017d01020300041105122131410613516107227114328191a1082342b1c11552d1f02433627282090a161718191a25262728292a3435363738393a434445464748494a535455565758595a636465666768696a737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7e8e9eaf1f2f3f4f5f6f7f8f9faffc4001f0100030101010101010101010000000000000102030405060708090a0bffc400b51100020102040403040705040400010277000102031104052131061241510761711322328108144291a1b1c109233352f0156272d10a162434e125f11718191a262728292a35363738393a434445464748494a535455565758595a636465666768696a737475767778797a82838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aab2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae2e3e4e5e6e7e8e9eaf2f3f4f5f6f7f8f9faffda000c03010002110311003f00")
-
-
-def len_to_bytes(l):
-    return bytes([l & 0xff, (l >> 8) & 0xff])
+def short_to_bytes(l):
+    return struct.pack("<h", l)
 def int_to_bytes(i):
-    return bytes([i & 0xff, (i >> 8) & 0xff, (i >> 16) & 0xff, (i >> 24) & 0xff, (i >> 32) & 0xff, (i >> 40) & 0xff, (i >> 48) & 0xff, (i >> 56) & 0xff])
+    return struct.pack("<i", i)
 
 def send_init(socket):
     data_init = bytes([0xef, 0x00, 0x04, 0x00])
@@ -35,7 +28,7 @@ def send_msgs(socket, msgs):
     for msg in msgs:
         to_send += msg
     to_send += bytes.fromhex("0000000000000000")
-    to_send = bytes([0xef, 0x02]) + len_to_bytes(len(to_send) + 4) + to_send
+    to_send = bytes([0xef, 0x02]) + short_to_bytes(len(to_send) + 4) + to_send
     try:
         socket.sendto(to_send,(ip,port))
     except:
@@ -53,21 +46,6 @@ def msg_ack_img(img_number):
 def msg_req_img(img_number):
     return int_to_bytes(img_number) + bytes.fromhex("0300000010000000")
     
-def getImgHeader(img_type):
-    if img_type == 5:
-        return jpeg_header_640x360_Q5
-    elif img_type == 10:
-        return jpeg_header_640x360_Q10
-    elif img_type == 25:
-        return jpeg_header_640x360_Q25
-    elif img_type == 50:
-        return jpeg_header_640x360_Q50
-    elif img_type == 75:
-        return jpeg_header_640x360_Q75
-    else:
-        return jpeg_header_640x360_Q100
-
-
 def rotate_image(image, angle):
     image_center = tuple(np.array(image.shape[1::-1]) / 2)
     rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
@@ -85,9 +63,7 @@ parser.add_argument('-r', '--rotation', action='store_true', help='Rotate image'
 
 args = parser.parse_args()
 
-current_packet = {}
-current_img_number = 1
-current_angle = 0
+current_frame = None
 last_full_image = 0
 last_msg = time.time()
 last_request_more = time.time()
@@ -98,7 +74,6 @@ s.bind(("0.0.0.0",36000))
 s.settimeout(0.025)
 send_null_pkt(s)
 send_init(s)
-img_number = 0
 while True:
     try:
         data, addr = s.recvfrom(1500) #Try to receive data
@@ -110,15 +85,14 @@ while True:
             if args.verbose:
                 print("Request timed out; Reconnecting")
             send_init(s)
-            current_img_number = 1
+            current_frame = None
             last_full_image = 0
-            current_packet = {}
             continue
-        if last_full_image > 0 and last_full_image == current_img_number:
+        if last_full_image > 0 and current_frame and last_full_image == current_frame.header.img_number:
             # Timeout and last image complete - send ACK and request again
             if args.verbose:
                 print("Request timed out; ACK+REQ resend")
-            send_msgs(s, [msg_ack_img(current_img_number), msg_req_img(current_img_number + 1)])
+            send_msgs(s, [msg_ack_img(current_frame.header.img_number), msg_req_img(current_frame.header.img_number + 1)])
         else:
             # Timeout and image incomplete - send request to continue transmission again
             if args.verbose:
@@ -126,57 +100,39 @@ while True:
             send_msgs(s, [])
         continue
     last_msg = time.time()
-    header = data[:56]
-    if header[0] != 0x93:
+    if data[0] != 0x93:
         continue
-    if header[1] == 0x04:
+    if data[1] == 0x04:
         # TODO ctlmsg
         continue
-    if header[1] != 0x01:
+    if data[1] != 0x01:
         continue
-    length = header[2] | (header[3] << 8)
-    packet_number = int(header[32]) + int(header[33] << 8) + int(header[34] << 16) + int(header[35] << 24)
-    packet_count = int(header[36]) + int(header[37] << 8) + int(header[38] << 16) + int(header[39] << 24)
-    img_number = int(header[8]) + int(header[9] << 8) + int(header[10] << 16) + int(header[11] << 24) + int(header[12] << 32) + int(header[13] << 40) + int(header[14] << 48) + int(header[15] << 56)
-    d = data[56:]
-    if img_number > current_img_number:
+    header = Header(data)
+    if not current_frame:
+        current_frame = Frame(header)
+    if header.img_number > current_frame.header.img_number:
         #Started receiving new image. Clear buffer.
-        current_img_number = img_number
-        current_packet = {}
-    if img_number < current_img_number:
+        current_frame = Frame(header)
+    if header.img_number < current_frame.header.img_number:
         #Received older image than displayed - discard
         continue
-    current_packet[packet_number] = d[:1024]
-    if packet_number == 0:
-        a = d[1024:]
-        x = int(a[:5].decode())
-        y = int(a[6:].decode())
-        if x == 0 and y == 1024:
-            current_angle = 90
-        else:
-            current_angle = atan2(x, y)
-            current_angle = degrees(current_angle)
-    if len(current_packet) == packet_count:
+    current_frame.add(data)
+    if current_frame.complete():
         #Image RX complete
         if args.verbose:
-            print("img_number:", img_number, file=sys.stderr)
-        img_type = header[48]
-        img = getImgHeader(img_type)
-        for i in range(packet_count):
-            img += current_packet[i]
-        img += bytes([0xff, 0xd9])
-        nparr = np.frombuffer(img, dtype=np.uint8)
+            print("img_number:", current_frame.header.img_number, file=sys.stderr)
+        nparr = np.frombuffer(current_frame.data(), dtype=np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         if args.rotation:
-            img2_cv = rotate_image(img_cv, current_angle * -1 - 90)
+            img2_cv = rotate_image(img_cv, current_frame.angle * -1 - 90)
         else:
             img2_cv = img_cv
         cv2.imshow('image', img2_cv)
         cv2.waitKey(2)
-        last_full_image = img_number
+        last_full_image = current_frame.header.img_number
         # ACK and request next frame
-        send_msgs(s, [msg_ack_img(current_img_number), msg_req_img(current_img_number + 1)])
-    if len(current_packet) < packet_count and time.time() > last_request_more + 0.025:
+        send_msgs(s, [msg_ack_img(current_frame.header.img_number), msg_req_img(current_frame.header.img_number + 1)])
+    elif time.time() > last_request_more + 0.025:
         # Image not yet complete – request to continue transmission
         send_msgs(s, [])
         last_request_more = time.time()
