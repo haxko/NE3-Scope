@@ -1,5 +1,4 @@
 import struct
-import dataclasses
 from math import atan2, degrees
 
 class Header:
