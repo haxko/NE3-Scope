@@ -60,6 +60,7 @@ parser = argparse.ArgumentParser(description="A Python based open source viewer 
 # Add command-line arguments
 parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose mode')
 parser.add_argument('-r', '--rotation', action='store_true', help='Rotate image')
+parser.add_argument('-z', '--zoom', default=1.0, type=float, help='Zoom image')
 
 args = parser.parse_args()
 
@@ -123,6 +124,7 @@ while True:
             print("img_number:", current_frame.header.img_number, file=sys.stderr)
         nparr = np.frombuffer(current_frame.data(), dtype=np.uint8)
         img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        img_cv = cv2.resize(img_cv, None, fx=args.zoom, fy=args.zoom)
         if args.rotation:
             img2_cv = rotate_image(img_cv, current_frame.angle * -1 - 90)
         else:
